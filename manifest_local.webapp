@@ -1,0 +1,26 @@
+{
+    "version":"1.4"
+    ,"name":"Data Value Comparison"
+    ,"description":"Data check between periods"
+    ,"launch_path":"index.html"
+    ,"installs_allowed_from":null
+    ,"default_locale":"en"
+    ,"icons":{
+        "16":null
+        ,"48":"img/icons/icon.png"
+        ,"128":null
+    }
+    ,"developer":{
+        "url":""
+        ,"name":"Tran Chau"
+        ,"company":null
+        ,"email":null
+    }
+    ,"activities":{
+        "dhis":{
+            "href":"../../dhis-web-appmanager"
+         }}
+    ,"folderName":null
+    ,"baseUrl":null
+    ,"launchUrl":null
+}

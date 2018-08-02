@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Data Value Comparison</title>
+<meta charset="UTF-8">
+
+
+	<script src="js/jQuery/jquery-1.11.1.min.js"></script>
+	<script src="js/jQuery/jquery-ui.min.js"></script>
+	<script src="js/jQuery/jquery.cookie.js"></script>
+	<script src="js/jQuery/jquery.blockUI.js"></script>
+
+	<script src="js/gmap3/gmap3.min.js"></script>
+	<script src="js/gmap3/gmap3-menu.js"></script>
+
+	<script src="js/jQuery/jquery-1.9.1.min.js"></script>
+	<script src="js/jQuery/jquery-ui.min.js"></script>
+	<script src="js/jQuery/jquery.blockUI.js"></script>
+
+
+	<script src="js/app/util/RESTUtil.js"></script>
+	<script src="js/app/util/util.js"></script>
+	<script src="js/app/util/MsgManager.js"></script>
+	<script src="js/app/preloadProcessManager.js"></script>
+	<script src="js/app/comparison-min.js"></script>
+
+	<link rel="stylesheet" href="css/jQuery/jquery-ui.css" />
+	<link rel="stylesheet" href="css/app/style.css">
+
+	<link rel="stylesheet" href="css/gmap3/gmap3-menu.css" />
+
+</head>
+
+<body>
+
+	<div id="header">
+		<img id="headerBanner" src="img/logo_banner.png" style="cursor:pointer" title="View home page">
+		<span id="headerText" style="cursor:pointer" title="View home page"></span>
+		<div id="headerRightSideControls">
+			<button type="button" id="settingPopupFormOpenBtn"><span>Setting</span></button>
+			| <a href="https://docs.google.com/document/d/1F5iQFvD5Q_YNHMclt5B5XybuKXbm9FnTJ2uMkEHETTM" target="_blank" style="color: White;">v 1.7</a>
+			| <button type="button" id="closeButton" onclick="window.location.href='../../../dhis-web-dashboard-integration/index.action'"><span nameId='closeButton'>Close</span></button>
+		</div>
+	</div>
+
+	<div style="margin-top: 40px;" id="dataForm">
+
+		<h2 class="pageTitle">Data Value Comparison</h2>
+
+		<fieldset id="analyticsSet">
+			<legend>Parameters</legend>
+
+			<table>
+				<tr>
+					<td class="right"><span class="label" key="entity">Entity</span></td>
+					<td>
+						<table>
+							<tr>
+								<td><select id='orgunitId' name="orgunitId" style="width:290px;"></select></td>
+								<td><button type='button' class="gray-hightlight" id="changeLevelBtn" title="Change organisation unit level"> L </button></td>
+							</tr>
+						</table>
+
+					</td>
+					<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td>
+					<td class="right" ><span class="label" key="year">Year</span></td>
+					<td>
+						<select id='periodId' name="periodId"></select>
+					</td>
+				</tr>
+				<tr>
+					<td class="right" nowrap><span class="label" key="deSelector">DE Selector</span></td>
+					<td>
+						<select id='deOptions' name="deOptions" style='width:110px;'>
+							<option value='deGroup'>DE Group</option>
+							<option value='deGroupSet'>DE Group Set</option>
+						</select>
+						<select id='deGroupId' name="deGroupId" style='width:200px;'></select>
+					</td>
+					<td></td>
+					<td class="right" nowrap><span class="label" key="variation">Variation</span> (%)</td>
+					<td>
+						<table>
+							<tr>
+								<td><img src="img/plus_minus.png"></td>
+								<td><input type="text" id='variation' name="variation" style="width:175px;" /></td>
+							</tr>
+						</table>
+					</td>
+				</tr>
+				<tr>
+					<td>&nbsp;</td>
+					<td colspan="4">
+						<button type="button" id="analyticsBtn" style="float:left"><span class="label" key="analytics">Analytics</span></button>
+					</td>
+				</tr>
+			</table>
+		</fieldset>
+
+		<br><br>
+
+
+		<div id='loaderDiv' style='display:none;'>
+			<table>
+				<tr>
+					<td>
+						<div id='progressDiv' style="font-size:13px; font-style:italic; color:#191970; width:100%;"></div>
+					</td>
+					<td>
+						<img src='img/loading.gif'>
+					</td>
+				</tr>
+			</table>
+		</div>
+
+		<div id='result' style="display: none;">
+			<table class="noteInfo">
+				<col width="30px"/>
+				<col width="300px"/>
+				<tr>
+					<td class="titlePart grayRow" style="background-color: silver;">&nbsp;</td>
+					<td>: Data processing</td>
+				</tr>
+				<tr>
+					<td class="titlePart orangeRow">&nbsp;</td>
+					<td>: Score is higher than variation</td>
+				</tr>
+			</table>
+
+			<br><br>
+
+			<fieldset style="width: 80%;">
+				<legend>Analytics result</legend>
+				<table align="right">
+					<tr>
+						<td class="gray-hightlight"><input type="checkbox" id="showOutliersChk"><span class="label" key="showOutliersOnly">Show outliers only</span></td>
+						<td>&nbsp;</td>
+						<td class="steelBlue-hightlight"><input type="checkbox" checked id="hideEmptyRowChk"><span class="label" key="hideEmptyRow">Hide empty row</span></td>
+					</tr>
+				</table>
+				<br>
+				<br>
+				<table id="comparisonTb" class="listTable"></table>
+			</fieldset>
+		</div>
+
+	</div>
+
+	<div id="orgunitLevelDiv" style="display: none;">
+		<table>
+			<tr>
+				<td>Select level</td>
+				<td>
+					<select id="level"></select>
+				</td>
+			</tr>
+		</table>
+	</div>
+
+	<div id="settingDialogForm" style="margin:0;padding:0;display:none;">
+		<table class="listTable" width="98%" align="center" style="margin-top: 10px;">
+			<tr>
+				<td>Show OUs</td>
+				<td>
+					<select id="showOrgunitSettings">
+						<option value="all">All Org Units</option>
+						<option value="userDataCapture">User’s Data Capture Org Units</option>
+						<option value="userDataOutput">User’s Data Output Org Units</option>
+					</select>
+				</td>
+			</tr>
+			<tr>
+				<td>Name To Use</td>
+				<td>
+					<select id="nameToUseSettings">
+						<option value="name">Full Name</option>
+						<option value="shortName">Short Name</option>
+						<option value="formName">Form Name</option>
+					</select>
+				</td>
+			</tr>
+			<tr>
+				<td>Thousand Separator</td>
+				<td>
+					<select id="thousandSeparatorSettings">
+						<option value="space">Space</option>
+						<option value="comma">Comma( , )</option>
+						<option value="dot">Dot( . )</option>
+						<option value="apostrophe">Apostrophe( . )</option>
+					</select>
+				</td>
+			</tr>
+			<tr>
+				<td>Decimal Data</td>
+				<td><input type="number" id="decimalDataSettings" value="0" style='width:160px;'> [0-10]</td>
+			</tr>
+			<tr>
+				<td>Decimal Percentage Change</td>
+				<td><input type="number" id="decimalPercentChangeSettings" value="1" style='width:160px;'> [0-10]</td>
+			</tr>
+		</table>
+
+	</div>
+</body>
+
+</html>
