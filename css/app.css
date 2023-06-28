@@ -1,0 +1,15 @@
+/* Reset borders due to overzealous css in dhis2 */
+.reset-border {
+  border-width: 0 0 1px 0 !important;
+  border-color: rgba(0,0,0,0.12) !important;
+}
+.reset-border:focus {
+  border-width: 0 0 2px 0 !important;
+  border-color: rgba(16,108,200,1) !important;
+}
+
+.error {
+  font-size: 12px;
+  color: #dd2c00;
+  margin: 0 0 0 160px;
+}

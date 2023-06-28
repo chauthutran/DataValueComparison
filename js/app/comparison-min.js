@@ -32,7 +32,10 @@ function FormAction( settingManagement_DM, orgunit_DM, deGroup_DM )
 	me.orgunit_UI = new OrganisationUnit_UI( me, me.orgunit_DM );
 	me.analysis = new Analysis( me );
 
+	me.closeButtonTag = $("[name='closeButton']");
+
 	me.analyticsSetTag = byId( 'analyticsSet' );
+	me.deOptionsTag = $( "#deOptions" );
 	me.loaderDivTag = byId( 'loaderDiv' );
 	me.periodIdTag = byId( 'periodId' );
 	me.orgunitIdTag = byId( 'orgunitId' );
@@ -48,9 +51,14 @@ function FormAction( settingManagement_DM, orgunit_DM, deGroup_DM )
 	me.changeLevelBtnTag = byId( 'changeLevelBtn' );
 	me.levelTag = byId( 'level' );
 
+	me.deCountTdTag = byId('deCountTd');
+	me.deNoTag = byId('deCount');
+	me.secondNoTag = byId('secondNo');
+
 
 	me.initialSetup = function(){
 
+		new Header();
 		me.setup_Events();
 
 		me.generatePeriods();
@@ -61,8 +69,38 @@ function FormAction( settingManagement_DM, orgunit_DM, deGroup_DM )
 
 	me.setup_Events = function()
 	{
+		me.closeButtonTag.click( function(){
+			window.location.href = _appURL;
+		});
+
 		me.orgunitIdTag.change( me.paramOnchange );
-		me.deGroupIdTag.change( me.paramOnchange );
+		me.deGroupIdTag.change( function(){
+			me.paramOnchange();
+			var selectedTag = me.deGroupIdTag.find("option:selected");
+			var deNo = selectedTag.attr("deNo");
+			if( deNo == undefined )
+			{
+				me.deCountTdTag.hide();
+			}
+			else 
+			{
+				deNo = eval( deNo );
+				if( deNo < 25 )
+				{
+					me.deCountTdTag.hide();
+				}
+				else
+				{
+					var deplaySeconds = selectedTag.attr("deplaySeconds");
+					var selectedDEOption = me.deOptionsTag.val();
+					selectedDEOption = ( selectedDEOption == "deGroup" ) ? "group" : "group set";
+
+					me.secondNoTag.html( deplaySeconds );
+					me.deNoTag.html( deNo );
+					me.deCountTdTag.show();
+				}
+			}
+		});
 		me.periodIdTag.change( me.paramOnchange );
 		me.variationTag.change( me.paramOnchange );
 		me.variationTag.keypress( me.variationOnKeypress );
@@ -505,11 +543,11 @@ function SettingManagement_UI( formAction, actionDone )
 			,height: me.height
 			,modal: true
 			,title: "Settings"
-			,close: function( event, ui )
-			{
-				$( this ).dialog( "close" );
-			},
-			buttons: {
+			// ,close: function( event, ui )
+			// {
+			// 	$( this ).dialog( "close" );
+			// }
+			,buttons: {
 				"Close": function () {
 					Util.hideElement( me.resultTag );
 					$(this).dialog("close");
@@ -520,7 +558,7 @@ function SettingManagement_UI( formAction, actionDone )
 
 	me.openDialogForm = function()
 	{
-		me.settingDialogFormTag.show();
+		// me.settingDialogFormTag.show();
 		me.settingDialogFormTag.dialog( "open" );
 	};
 
@@ -579,18 +617,32 @@ function SettingManagement_DM()
 	me.settingData = [];
 
 	me.dbSettingName = "Comparision_Settings";
-	me.queryURL_SystemSettings = _queryURL_api + 'systemSettings/';
+	me.queryURL_SystemSettings = _queryURL_api + 'dataStore/dataValueComparision/';
 
 	me.saveSettingData = function( json_Data, successFunc )
 	{
-		RESTUtil.submitData_Text( me.queryURL_SystemSettings + me.dbSettingName, json_Data
-			, function()
+		RESTUtil.getAsyncData( me.queryURL_SystemSettings + me.dbSettingName
+			, function( data )
 			{
-				me.settingData = json_Data;
-				if( successFunc !== undefined ) successFunc();
-			}
-		);
+				me.addAndUpdateSettingData( json_Data, "PUT", successFunc );
+			}, function( xhr ){ }
+			, function( ){
+				me.addAndUpdateSettingData( json_Data, "POST", successFunc );
+			});
+
+		
 	};
+
+	me.addAndUpdateSettingData = function( json_Data, requestMethod, successFunc )
+	{
+		RESTUtil.submitData_Text( me.queryURL_SystemSettings + me.dbSettingName, requestMethod, json_Data
+		, function()
+		{
+			me.settingData = json_Data;
+			if( successFunc !== undefined ) successFunc();
+		}
+	);
+	}
 
 	me.performSetup = function( execFunc )
 	{
@@ -659,12 +711,14 @@ function DataElementGroup() {
 
 	var me = this;
 
-	me._queryURL_DataElement_Group = _queryURL_api + "dataElementGroups.json?paging=false&fields=displayName,id&translate=true";
-	me._queryURL_DataElement_Group_Set = _queryURL_api + "dataElementGroupSets.json?paging=false&fields=displayName,id&translate=true";
+	me._queryURL_DataElement_Group = _queryURL_api + "dataElementGroups.json?paging=false&fields=displayName,id,dataElements~size&translate=true";
+	me._queryURL_DataElement_Group_Set = _queryURL_api + "dataElementGroupSets.json?paging=false&fields=displayName,id,dataElementGroups[dataElements~size]&translate=true";
 	
 	me.deOptionsTag = $( "#deOptions" );
-	
 	me.deGroupIdTag = $("#deGroupId");
+	me.deCountTdTag = byId('deCountTd');
+	me.enableButtonMsgTag = byId('enableButtonMsg');
+
 
 	me.initialSetup = function()
 	{
@@ -708,11 +762,19 @@ function DataElementGroup() {
 			,function( json )
 			{
 				Util.clearList( me.deGroupIdTag );
+				me.deGroupIdTag.append("<option value=''>[Please select]</option>");
 				
 				var groupSets = json.dataElementGroupSets;
 				for( var i=0; i<groupSets.length; i++ )
 				{
-					me.deGroupIdTag.append( "<option value='" + groupSets[i].id + "'>" + groupSets[i].displayName + "</option>" );
+					var deNo = 0;
+					for( var j=0; j<groupSets[i].dataElementGroups.length; j++ )
+					{
+						deNo += groupSets[i].dataElementGroups[j].dataElements;
+					}
+
+					var deplaySeconds = me.getDelaySeconds( deNo );
+					me.deGroupIdTag.append( "<option value='" + groupSets[i].id + "' deNo='" + deNo + "' deplaySeconds='" + deplaySeconds + "'>" + groupSets[i].displayName + " (" + deNo + ")" + " </option>" );
 				}
 				
 				Util.disable( me.deGroupIdTag, false );
@@ -731,11 +793,14 @@ function DataElementGroup() {
 			,function( json )
 			{
 				Util.clearList( me.deGroupIdTag );
+				me.deGroupIdTag.append("<option value=''>[Please select]</option>")
 				
 				var groups = json.dataElementGroups;
 				for( var i=0; i<groups.length; i++ )
 				{
-					me.deGroupIdTag.append( "<option value='" + groups[i].id + "'>" + groups[i].displayName + "</option>" );
+					var deNo = groups[i].dataElements;
+					var deplaySeconds = me.getDelaySeconds( deNo );
+					me.deGroupIdTag.append( "<option value='" + groups[i].id + "' deNo='" + deNo + "' deplaySeconds='" + deplaySeconds + "'>" + groups[i].displayName  + " (" + deNo + ")" + "</option>" );
 				}
 				
 				Util.disable( me.deGroupIdTag, false );
@@ -743,6 +808,30 @@ function DataElementGroup() {
 			}
 		);
 	};
+
+	me.getDelaySeconds = function( deNo )
+	{
+		if( deNo == undefined )
+		{
+			return 0;
+		}
+		if( deNo < 25 )
+		{
+			return 2;
+		}
+		else if( deNo < 50 )
+		{
+			return 15;
+		}
+		else if( deNo < 100 )
+		{
+			return 30;
+		}
+		else
+		{
+			return 60;
+		}
+	}
 }
 
 
@@ -756,9 +845,10 @@ function DataElementGroup() {
 // ---------
 
 
-function DataCalculation( formAction, deId ) 
+function DataCalculation( analysisObj, formAction, deId ) 
 {
 	var me = this;
+	me.analysisObj = analysisObj;
 	me.formAction = formAction;
 	me.orgunit_UI = me.formAction.orgunit_UI;
 	me.analysisData = me.formAction.analysis.getAnalysisData();
@@ -773,33 +863,91 @@ function DataCalculation( formAction, deId )
 		me.retrieveDataValue( me.analysisData.lastPeriod );
 	};
 
-	me.retrieveDataValue = function( period )
+	me.retrieveDataValue = function( period, individualLoaded )
 	{
 		var url = getDataValueUrlWithParam( deId, me.orgunit_UI.getSelected().id, period );
 		RESTUtil.getGetData( url
 			,function(json)
 			{
-				json.rows.forEach(function (dataValue) {
-					var de = dataValue[0];
-					var pe = dataValue[1];
-					var value = dataValue[2];
-					value = ( value == "" ) ? "0" : value;
+				if( json.rows.length > 0 )
+				{
+					json.rows.forEach(function (dataValue) {
+						var de = dataValue[0];
+						var pe = dataValue[1];
+						var value = dataValue[2];
+						value = ( value == "" ) ? "0" : value;
 
-					var decimalNo = me.settingManagement_UI.getSettingDataByKey( me.settingManagement_UI.SETTING_DECIMAL_DATA, 0 );
-					me.analysisData.table.find( "#" + de ).find( '[period="' + pe + '"]' ).attr( "realval", value ).attr( "title", value ).html( me.formatValue( value, decimalNo ) );
-				});
+						me.populateValueInCell( de, pe, value );
+
+						if( individualLoaded !== undefined && individualLoaded )
+						{
+							me.gainCalculate();
+						}
+						// var decimalNo = me.settingManagement_UI.getSettingDataByKey( me.settingManagement_UI.SETTING_DECIMAL_DATA, 0 );
+
+						// var rowTag = me.analysisData.table.find( "#" + de );
+						// rowTag.removeClass("error");
+						// rowTag.css( "background-color", "" );
+						// rowTag.attr( "title", "" );
+						// rowTag.find( '[period="' + pe + '"]' ).attr( "realval", value ).attr( "title", value ).html( me.formatValue( value, decimalNo ) );
+					});
+				}
+				else
+				{
+					// var decimalNo = me.settingManagement_UI.getSettingDataByKey( me.settingManagement_UI.SETTING_DECIMAL_DATA, 0 );
+					var de = me.getDeIdFromURL( this.url );
+					var pe = me.getPeriodIdFromURL( this.url );
+					me.populateValueInCell( de, pe, 0 );
+					if( individualLoaded !== undefined && individualLoaded )
+					{
+						me.gainCalculate();
+					}
+
+					// var value = 0;
+					// var rowTag = me.analysisData.table.find( "#" + de );
+					// rowTag.removeClass("error");
+					// rowTag.css( "background-color", "" );
+					// rowTag.attr( "title", "" );
+					// rowTag.find( '[period="' + pe + '"]' ).attr( "realval", value ).attr( "title", value ).html( me.formatValue( value, decimalNo ) );
+				}
 			}
 			,function( data )
 			{
-				var json = $.parseJSON( data.responseText );
+				var title = "";
 				var de = me.getDeIdFromURL( this.url );
 				var pe = me.getPeriodIdFromURL( this.url );
-				var value = json.message;
+				var rowTag = me.analysisData.table.find( "#" + de );
+				var colTag = rowTag.find( '[period="' + pe + '"]' );
+				rowTag.addClass("error");
+				rowTag.removeClass("dataRow");
+				rowTag.css( "background-color", "#f37272" );
+				colTag.html( "ERROR" );
+				colTag.attr( 'realVal', '-');
 
-				me.analysisData.table.find( "tbody" ).find( 'tr' ).remove();
-				var row = $( "<tr></tr>" );
-				row.append( "<td colspan='4'>" + json.message + "</td>" );
-				me.analysisData.table.find( "tbody" ).append( row );
+				if( data.responseText == "" )
+				{
+					title = "Error when to retrieve data. Click button to load data again.";
+					
+					var reloadBtnTag = $("<input type='button' value='reload'>");
+					reloadBtnTag.click( function(){
+						me.retrieveDataValue(pe, true) ;
+					});
+
+				}
+				else
+				{
+					var json = $.parseJSON( data.responseText );
+					title = json.message;
+				}
+
+				
+				colTag.append( reloadBtnTag );
+				colTag.attr( "title", title );
+
+				// me.analysisData.table.find( "tbody" ).find( 'tr' ).remove();
+				// var row = $( "<tr class='error' style='background-color:red;'></tr>" );
+				// row.append( "<td colspan='4'>" + value + " <input type='button' value='reload' onclick='" + me.retrieveDataValue(pe) + ";'></td>" );
+				// me.analysisData.table.find( "tbody" ).append( row );
 
 				me.progress();
 			}
@@ -808,6 +956,20 @@ function DataCalculation( formAction, deId )
 				me.progress();
 			}
 		);
+	};
+
+	me.populateValueInCell = function( de, pe, value )
+	{
+		var decimalNo = me.settingManagement_UI.getSettingDataByKey( me.settingManagement_UI.SETTING_DECIMAL_DATA, 0 );
+		// var de = me.getDeIdFromURL( this.url );
+		// var pe = me.getPeriodIdFromURL( this.url );
+
+		var rowTag = me.analysisData.table.find( "#" + de );
+		rowTag.removeClass("error");
+		rowTag.addClass("dataRow");
+		rowTag.css( "background-color", "" );
+		rowTag.attr( "title", "" );
+		rowTag.find( '[period="' + pe + '"]' ).attr( "realval", value ).attr( "title", value ).html( me.formatValue( value, decimalNo ) );
 	};
 
 	me.getPeriodIdFromURL = function(url)
@@ -842,10 +1004,16 @@ function DataCalculation( formAction, deId )
 
 		if( deCount == ( deTotal * 2 ) )
 		{
+			me.analysisObj.loadedData = true;
+
+			console.log( ' ----- me.analysisObj.loadedData : ' + me.analysisObj.loadedData );
 			Util.hideElement( me.loaderDivTag );
 			$( '.grayRow' ).removeClass( 'grayRow' );
+			$(".error").css( "background-color", "#f37272" );
+
 			me.gainCalculate();
 		}
+
 	};
 
 	me.gainCalculate = function()
@@ -862,7 +1030,7 @@ function DataCalculation( formAction, deId )
 						
 			// Set emty row
 			
-			if ( lastData == 0 && curData == 0 ) 
+			if( lastData == undefined || curData == undefined || ( lastData == 0 && curData == 0 ) )
 			{
 				$( this ).addClass( "empty" );
 				$( this ).hide();
@@ -873,10 +1041,16 @@ function DataCalculation( formAction, deId )
 			me.setGainVal( $( this ), lastData, curData );
 			
 			// Calculate the number total of period
-			
-			lastPeriodTotal += lastData;
-			curPeriodTotal += curData;
-			
+
+			if( curData != undefined )
+			{
+				curPeriodTotal += curData;
+			}
+
+			if( lastData != undefined )
+			{
+				lastPeriodTotal += lastData;
+			}
 		});
 		
 		// Set total values
@@ -891,8 +1065,15 @@ function DataCalculation( formAction, deId )
 	
 	me.roundValue = function( value, decimalNo )
 	{
-		decimalNo = ( decimalNo == "") ? 0 : decimalNo;
-		return eval(value).toFixed( decimalNo );
+		if( !isNaN(value) )
+		{
+			decimalNo = ( decimalNo == "") ? 0 : decimalNo;
+			return eval(value).toFixed( decimalNo );
+		}
+		else
+		{
+			return value;
+		}
 	};
 
 	me.formatValue = function( value, decimalNo )
@@ -913,7 +1094,7 @@ function DataCalculation( formAction, deId )
 		else if( thousandSeparatorSetting == me.settingManagement_UI.SETTING_THOUSAND_SEPARATOR_APOSTROPHE ){
 			thousandSeparatorSign = "'";
 		}
-
+	//console.log('value : ' + value);	
 		var partValues = value.split(".");
 		var part1 = Util.formatNumber( partValues[0], thousandSeparatorSign );
 
@@ -930,33 +1111,55 @@ function DataCalculation( formAction, deId )
 	me.getPeriodVal = function( row, period )
 	{
 		var realValue = $( row ).find( '[period="' + period +'"]' ).attr( 'realval' );
-		return ( realValue == undefined ) ? 0 : eval( realValue );
+		if ( realValue == undefined ) {
+			return 0;
+		}
+		else if( !isNaN(realValue) ) {
+			return eval( realValue );
+		}
+		else {
+			return undefined;
+		} 
 	}
 
 	me.setGainVal = function( rowTag, lastData, curData )
 	{	
-		var realValue = 0;
-		if( lastData == 0 && curData == 0 )
+		var realValue;
+		if( lastData == undefined || curData == undefined )
+		{
+			realValue = "";
+		}
+		else if( !isNaN(lastData)  )
 		{
 			realValue = 0;
+			if( lastData == 0 && curData == 0 )
+			{
+				realValue = 0;
+			}
+			else if( lastData == 0 && curData != 0 )
+			{
+				realValue = 100;
+			}
+			else if( lastData != 0 && curData == 0 )
+			{
+				realValue = -100;
+			}
+			else
+			{
+				realValue = ( ( curData - lastData ) / lastData ) * 100;
+			}
 		}
-		else if( lastData == 0 && curData != 0 )
-		{
-			realValue = 100;
-		}
-		else if( lastData != 0 && curData == 0 )
-		{
-			realValue = -100;
-		}
-		else
-		{
-			realValue = ( ( curData - lastData ) / lastData ) * 100;
-		}
-		
+
 		var decimalPercentChange = me.settingManagement_UI.getSettingDataByKey( me.settingManagement_UI.SETTING_DECIMAL_PERCENT_CHANGE , 1 );
-		var displayValue = me.formatValue( realValue, decimalPercentChange );
-		
-		$( rowTag ).find( '.gain' ).attr( 'realVal', realValue ).attr( "title", realValue ).html( displayValue + "%" );
+		var displayValue = "";
+		var displayValueStr = "";
+		if( realValue != undefined && realValue != "" )
+		{
+			displayValue = me.formatValue( realValue, decimalPercentChange );
+			displayValueStr = displayValue + "%";
+		}
+
+		$( rowTag ).find( '.gain' ).attr( 'realVal', realValue ).attr( "title", realValue ).html( displayValueStr );
 		
 		if ( !$( rowTag ).hasClass( 'totalRow' ) 
 			&& ( displayValue >= me.analysisData.variation || displayValue <= -1 * me.analysisData.variation ) )
@@ -989,13 +1192,14 @@ function Analysis( formAction )
 
 	me._queryURL_DataElements_Prefix = _queryURL_api + "dataElements.json?fields=id,displayName,formName,shortName&translate=true&paging=false&filter=";
 	me._queryURL_DataElements_Group = me._queryURL_DataElements_Prefix + "dataElementGroups.id:eq:";
-	me._queryURL_DataElements_Group_Set = me._queryURL_DataElements_Prefix + "dataElementGroups.dataElementGroupSet.id:eq:";
+	me._queryURL_DataElements_Group_Set = me._queryURL_DataElements_Prefix + "dataElementGroups.groupSets.id:eq:";
 
 	me.formAction = formAction;
 	me.orgunit_UI = me.formAction.orgunit_UI;
 
 	me.settingManagement_UI = me.formAction.settingManagement_UI;
 
+	me.analyticsBtnTag = $( "#analyticsBtn");
 	me.periodIdTag = $( "#periodId" );
 	me.variationTag = $( "#variation" );
 	me.comparisonTbTag = $( "#comparisonTb" );
@@ -1003,7 +1207,12 @@ function Analysis( formAction )
 	me.deGroupTag = $( "#deGroupId" );
 	me.loaderDivTag = $( "#loaderDiv" );
 	me.progressDivTag = $( "#progressDiv" );
-	
+	me.enableButtonMsgTag = byId('enableButtonMsg');
+	me.processingSecondsTag = byId('processingSeconds');
+
+	me.loadedData = false;
+	me.timeoutWatch;
+
 	me.SETTING_SHOW_ALL_ORGUNIT = "showOrgunitSettings";
 	me.SETTING_SHOW_USER_DATA_CAPTURE_ORGUNIT = "userDataCapture";
 	me.SETTING_SHOW_USER_DATA_OUTPUT_ORGUNIT = "userDataOutput";
@@ -1020,6 +1229,19 @@ function Analysis( formAction )
 
 	me.run = function()
 	{
+		Util.disable( me.analyticsBtnTag, true );
+		me.loadedData = false;
+
+		var selectedOptionTag = me.deGroupTag.find("option:selected");
+		var deplaySeconds = selectedOptionTag.attr("deplaySeconds");
+		selectedOptionTag.attr("processingSeconds", deplaySeconds );
+
+		Util.processingSeconds = eval( selectedOptionTag.attr("processingSeconds" ) );
+		me.processingSecondsTag.html( deplaySeconds );
+		me.enableButtonMsgTag.hide();
+		me.startWatch();
+
+
 		Util.clearTable( me.comparisonTbTag );
 		me.generateTableHeader( me.getAnalysisData().curPeriod, me.getAnalysisData().lastPeriod );
 
@@ -1059,6 +1281,40 @@ function Analysis( formAction )
 		);
 	};
 
+	me.startWatch = function() {
+		
+		setInterval( function(){
+			// me.enableButtonMsgTag.show();
+			// var selectedOptionTag = me.deGroupTag.find("option:selected");
+			// var processingSeconds = eval( selectedOptionTag.attr("processingSeconds" ) ) - 1;
+			// selectedOptionTag.attr("processingSeconds", processingSeconds );
+			Util.processingSeconds --;
+			me.processingSecondsTag.html( Util.processingSeconds );
+
+			if( Util.processingSeconds >=0 )
+			{
+				me.processingSecondsTag.html( Util.processingSeconds );
+				if( me.loadedData )
+				{
+					if( Util.processingSeconds > 0  )
+					{
+						me.enableButtonMsgTag.show();
+					}
+					else
+					{
+						me.enableButtonMsgTag.hide();
+						Util.disable( me.analyticsBtnTag, false );
+					}
+				}
+				else
+				{
+					me.enableButtonMsgTag.hide();
+				}
+			}
+		}, 1000);
+
+	}
+
 
 	me.generateTableHeader = function()
 	{
@@ -1087,7 +1343,7 @@ function Analysis( formAction )
 
 		me.getAnalysisData().table.find( 'tbody' ).append( row );
 
-		var calculate = new DataCalculation( me.formAction, de.id );
+		var calculate = new DataCalculation( me, me.formAction, de.id );
 		calculate.setData();
 	};
 	
@@ -1114,7 +1370,7 @@ function Translation()
 {
 	var me = this;
 
-	me._queryURL_User_Language = _queryURL_api + "me/user-account";
+	me._queryURL_User_Language = _queryURL_api + "me/settings";
 	me.dataFormTag = $( "#dataForm" );
 
 	me.performSetup = function( returnFunc ) {
@@ -1123,7 +1379,7 @@ function Translation()
 			,function( json )
 			{
 				// Get ui-locale which is selected from current user
-				var userUiLocale = json.settings.keyUiLocale;
+				var userUiLocale = json.keyUiLocale;
 				if( userUiLocale === undefined )
 				{
 					userUiLocale = "en";
@@ -1141,34 +1397,61 @@ function Translation()
 	{
 		// Spanish
 		"es": {
-			"entity": "Entidad"
+			 "entity": "Entidad"
 			, "year": "Año"
 			, "deSelector": "Grupo de elementos de datos"
 			, "variation": "Variación"
 			, "showOutliersOnly": "Sólo mostrar valores atipicos"
 			, "hideEmptyRow": "Ocultar filas vacias"
+			, "analytics" : "Comparar"
+			, "thereIs": "Hay"
+			, "deNo": "Elementos de datos en el seleccionado"
+			, "selectdeOption": "Hay"
+			, "dueTo": "Debido al volumen de datos, el botón 'Comparar' estará deshabilitado para"
+			, "secondNo": "segundos después de la ejecución"
+			, "selectdeOption" : "grupo / conjunto de grupos"
+			, "waitingEnableBtn": "El botón se habilitará en"
+			, "seconds": "segundos"
+			, "dataProcessing": "Procesamiento de datos"
+			, "scoreHigher": "La puntuación es más alta que la variación"
+			, "errorData": "Error al recuperar datos"
 		}
 		, "en": {
-			"entity": "Entity"
+			 "entity": "Entity"
 			, "year": "Year"
 			, "deSelector": "DE Group"
 			, "variation": "Variation"
 			, "showOutliersOnly": "Show outliers only"
 			, "hideEmptyRow": "Hide empty row"
+			, "analytics" : "Compare"
+			, "thereIs" : "There are"
+			, "deNo" : "data elements in the selected"
+			, "selectdeOption" : "There are"
+			, "dueTo" : "Due to the volume of data the 'Compare' button will be disabled for"
+			, "secondNo" : "seconds after running"
+			, "selectdeOption" : "group / group set"
+			, "waitingEnableBtn" : "The button will be enable in"
+			, "seconds" : "seconds"
+			, "dataProcessing" : "Data processing"
+			, "scoreHigher" : "Score is higher than variation"
+			, "errorData" : "Error while retrieving data"
 		}
+
 	};
 
 	me.translate = function( uiLocale ){
 
-		me.dataFormTag.find( "span.label" ).each( function()
+		me.dataFormTag.find( "span" ).each( function()
 		{
 			var key = $( this ).attr( "key" );
-			var transValue = me.translateKey( uiLocale, key );
-			if( transValue !== undefined )
+			if( key !== undefined )
 			{
-				$( this ).html( transValue );
+				var transValue = me.translateKey( uiLocale, key );
+				if( transValue !== undefined )
+				{
+					$( this ).html( transValue );
+				}
 			}
-
 		});
 
 	};

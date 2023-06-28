@@ -29,18 +29,19 @@ RESTUtil.getSynchData = function( url ) {
 	}).responseText;
 }
 
-RESTUtil.submitData_Text = function( url, jsonData, successFunc, failFunc )
+RESTUtil.submitData_Text = function( url, requestType, jsonData, successFunc, failFunc )
 {
     $.ajax({
-        type: "POST",
+        type: requestType,
         url: url,
+        dataType: "json",
         data: JSON.stringify( jsonData ),
-        contentType: "text/plain; charset=utf-8",
+        contentType: "application/json;charset=UTF-8",
         success: function( msg ) {
             successFunc();
         },
         error: function( msg ) {
-            failFunc();
+            if( failFunc != undefined ) failFunc();
         }
     });
 }
@@ -58,3 +59,12 @@ RESTUtil.getGetData = function( url, actionSuccess, actionError, actionDone )
         if ( actionDone !== undefined ) actionDone();
     });;
 }
+
+RESTUtil.getTextData = function( url, exeFunc ) {
+	return $.ajax({
+		type: "GET",
+		url: url,
+		async: true,
+		success: exeFunc 
+	}).responseText;
+};

@@ -57,6 +57,8 @@ function getURLParameterByVariables( url, name )
 // Util methods
 // ------------------------------------------------------------------------------------
 
+Util.processingSeconds = 0;
+
 function getDataValueUrlWithParam( deId, ouId, period )
 {
 	return _queryURL_Data_Value + 'dimension=dx:' + deId + '&dimension=pe:' + period + '&filter=ou:' + ouId;

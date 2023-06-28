@@ -5,6 +5,7 @@
 <meta charset="UTF-8">
 
 
+	
 	<script src="js/jQuery/jquery-1.11.1.min.js"></script>
 	<script src="js/jQuery/jquery-ui.min.js"></script>
 	<script src="js/jQuery/jquery.cookie.js"></script>
@@ -20,6 +21,7 @@
 
 	<script src="js/app/util/RESTUtil.js"></script>
 	<script src="js/app/util/util.js"></script>
+	<script src="js/app/header.js"></script>
 	<script src="js/app/util/MsgManager.js"></script>
 	<script src="js/app/preloadProcessManager.js"></script>
 	<script src="js/app/comparison-min.js"></script>
@@ -34,14 +36,16 @@
 <body>
 
 	<div id="header">
-		<img id="headerBanner" src="img/logo_banner.png" style="cursor:pointer" title="View home page">
-		<span id="headerText" style="cursor:pointer" title="View home page"></span>
-		<div id="headerRightSideControls">
-			<button type="button" id="settingPopupFormOpenBtn"><span>Setting</span></button>
-			| <a href="https://docs.google.com/document/d/1F5iQFvD5Q_YNHMclt5B5XybuKXbm9FnTJ2uMkEHETTM" target="_blank" style="color: White;">v 1.7</a>
-			| <button type="button" id="closeButton" onclick="window.location.href='../../../dhis-web-dashboard-integration/index.action'"><span nameId='closeButton'>Close</span></button>
+		<img id="headerBanner" src="img/logo_banner.png" name='closeButton' style="cursor:pointer" title="View home page">
+		<span id="headerText" name="closeButton" style="cursor:pointer" title="View home page">Data Value Comparison</span>
+		<div id="headerRightSideControls">			
+				<a href="https://docs.google.com/document/d/1F5iQFvD5Q_YNHMclt5B5XybuKXbm9FnTJ2uMkEHETTM" target="_blank" style="color: White;font-size:12px;">v 1.13</a>
+				| 
+				<button type="button" id='settingPopupFormOpenBtn' class='btn btn-primary btn-xs'><span>Settings</span></button> | 
+				<button type="button" name='closeButton' class='btn btn-primary btn-xs'><span>Close</span></button>
 		</div>
 	</div>
+
 
 	<div style="margin-top: 40px;" id="dataForm">
 
@@ -51,50 +55,58 @@
 			<legend>Parameters</legend>
 
 			<table>
-				<tr>
+				<tbody><tr>
 					<td class="right"><span class="label" key="entity">Entity</span></td>
 					<td>
 						<table>
-							<tr>
-								<td><select id='orgunitId' name="orgunitId" style="width:290px;"></select></td>
-								<td><button type='button' class="gray-hightlight" id="changeLevelBtn" title="Change organisation unit level"> L </button></td>
+							<tbody><tr>
+								<td><select id="orgunitId" name="orgunitId" style="width:290px;"></select></td>
+								<td><button type="button" class="gray-hightlight" id="changeLevelBtn" title="Change organisation unit level"> L </button></td>
 							</tr>
-						</table>
+						</tbody></table>
 
 					</td>
 					<td>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</td>
-					<td class="right" ><span class="label" key="year">Year</span></td>
+					<td class="right"><span class="label" key="year">Year</span></td>
 					<td>
-						<select id='periodId' name="periodId"></select>
+						<select id="periodId" name="periodId"></select>
 					</td>
 				</tr>
 				<tr>
-					<td class="right" nowrap><span class="label" key="deSelector">DE Selector</span></td>
+					<td class="right" nowrap=""><span class="label" key="deSelector">DE Group</span></td>
 					<td>
-						<select id='deOptions' name="deOptions" style='width:110px;'>
-							<option value='deGroup'>DE Group</option>
-							<option value='deGroupSet'>DE Group Set</option>
+						<select id="deOptions" name="deOptions" style="width:110px;">
+							<option value="deGroup">DE Group</option>
+							<option value="deGroupSet">DE Group Set</option>
 						</select>
-						<select id='deGroupId' name="deGroupId" style='width:200px;'></select>
+						<select id="deGroupId" name="deGroupId" style="width: 200px;"></select>
 					</td>
 					<td></td>
-					<td class="right" nowrap><span class="label" key="variation">Variation</span> (%)</td>
+					<td class="right" nowrap=""><span class="label" key="variation">Variation</span> (%)</td>
 					<td>
 						<table>
-							<tr>
+							<tbody><tr>
 								<td><img src="img/plus_minus.png"></td>
-								<td><input type="text" id='variation' name="variation" style="width:175px;" /></td>
+								<td><input type="text" id="variation" name="variation" style="width:175px;"></td>
 							</tr>
-						</table>
+						</tbody></table>
+					</td>
+				</tr>
+				<tr>
+					<td></td>
+					<td colspan="4" style="font-style:italic;display:none;" id="deCountTd">
+						<span key="thereIs">There are</span> <span id="deCount"></span> <span key="deNo">data elements in the selected</span> <span key="selectdeOption">group / group set</span>. 
+						<span key="dueTo">Due to the volume of data the 'Compare' button will be disabled for</span> <span id="secondNo"></span> <span key="secondNo">seconds after running</span>.
 					</td>
 				</tr>
 				<tr>
 					<td>&nbsp;</td>
 					<td colspan="4">
-						<button type="button" id="analyticsBtn" style="float:left"><span class="label" key="analytics">Analytics</span></button>
-					</td>
+						<button type="button" id="analyticsBtn" style="float:left"><span class="label" key="analytics">Compare</span></button>
+						<span style="font-style:italic;display:none;margin-left: 5px;" id="enableButtonMsg"><span key="waitingEnableBtn">The button will be enable in</span> <span id="processingSeconds"></span> <span key="seconds">seconds</span></span></td>
+					
 				</tr>
-			</table>
+			</tbody></table>
 		</fieldset>
 
 		<br><br>
@@ -133,7 +145,7 @@
 				<legend>Analytics result</legend>
 				<table align="right">
 					<tr>
-						<td class="gray-hightlight"><input type="checkbox" id="showOutliersChk"><span class="label" key="showOutliersOnly">Show outliers only</span></td>
+						<td class="gray-hightlight" style="background-color: #eaae42;"><input type="checkbox" id="showOutliersChk"><span class="label" key="showOutliersOnly">Show outliers only</span></td>
 						<td>&nbsp;</td>
 						<td class="steelBlue-hightlight"><input type="checkbox" checked id="hideEmptyRowChk"><span class="label" key="hideEmptyRow">Hide empty row</span></td>
 					</tr>
